@@ -57,6 +57,7 @@
        ▼
 🗣️ whisper_node.py（语音识别）   <-->  tts_output.py(文本转语音)
        │ → /voice_command (String)    <-->  /tts_request (String)
+       │ → 这里完成了语音的同步输出与异步输出选择，但是还缺乏流式语音识别和流式语音输出，先凑合用吧
        ▼
 🧠 llm_node.py（大模型解析意图） ← LLM（Ollama）
        │ → 输出到 /object_request (String)
@@ -67,8 +68,7 @@
        ▼
 📐 tf_transformer.py（相机 → base_link 坐标转换）
        │ → /base_target_point (geometry_msgs/PointStamped)
-       │ → 目前使用静态转换（假设相机固定在底座）
-       │ → 目前使用静态转换（假设相机固定在底座）
+       │ → 目前使用静态转换（机固定在底座）
        ▼
 🦾 grasp_server.py（发送抓取 Action 到 MoveIt）
        │ → 控制机械臂完成抓取任务 ✅
@@ -167,6 +167,10 @@
    ```
 
 ---
+
+![moveit界面](./moveit.jpg)
+![静态布置相机视角](./camera.jpg)
+
 
 ## 🧪 测试建议
 
