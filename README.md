@@ -133,9 +133,9 @@
 
 3. TF 坐标转换前的准备  
    ```bash
-   # 假设相机静态固定于机械臂底座
-   # 可根据实际情况调整数值
-   ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 camera_link base_link
+   # 假设相机静态固定于机械臂底座, 如上面的图所示
+   # 可根据实际情况调整数值，这里是按照图片中来的大致数值
+   ros2 run tf2_ros static_transform_publisher 0.02 0. -0.08 0 0 0 camera_link base_link
    ```
 
 4. 启动 tf_transformer  
