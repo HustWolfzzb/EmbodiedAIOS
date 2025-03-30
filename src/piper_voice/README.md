@@ -1,6 +1,3 @@
-以下是基于你这份 `ROS 2 + Whisper` 语音识别节点的完整 `README.md`，包含部署步骤、功能说明、依赖环境，以及 Jetson Orin 上常见问题排查和修复方法。
-
----
 
 # 🧠 Whisper 语音识别节点（ROS 2）
 
@@ -35,7 +32,7 @@ sudo apt install alsa-utils ffmpeg
 source /opt/ros/humble/setup.bash
 ```
 
-#### 2. 创建 ROS 2 包（如果还没有）
+#### 2. 创建 ROS 2 包（如果还没有,在src文件夹上层）
 
 ```bash
 ros2 pkg create --build-type ament_python piper_voice
@@ -139,11 +136,3 @@ sudo apt install flac
 - 自动检测麦克风设备编号（`arecord -l` 解析）
 
 ---
-
-## 📬 联系我
-
-如果你在 Jetson Orin 上遇到 Whisper 部署问题，或者需要定制语音交互系统，欢迎提问交流！
-
----
-
-要不要我帮你把这份 README.md 写入你的包目录，自动生成并加入 `setup.cfg`？需要的话我可以一并处理。
