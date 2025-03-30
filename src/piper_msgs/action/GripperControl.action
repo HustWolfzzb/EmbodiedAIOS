@@ -1,0 +1,9 @@
+# goal
+float64 gripper_angle    # joint6 旋转角度（单位：弧度，推荐范围：-0.785 ~ +0.785）
+float64 gripper_width    # joint7 开合宽度（单位：米，推荐范围：0.01 ~ 0.04）
+---
+# result
+bool success
+string message
+---
+# feedback（暂不使用）
