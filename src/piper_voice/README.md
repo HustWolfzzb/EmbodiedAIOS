@@ -32,7 +32,7 @@ sudo apt install alsa-utils ffmpeg
 source /opt/ros/humble/setup.bash
 ```
 
-#### 2. 创建 ROS 2 包（如果还没有,在src文件夹上层）
+#### 2. 创建 ROS 2 包（如果还没有,在src文件夹内）
 
 ```bash
 ros2 pkg create --build-type ament_python piper_voice
