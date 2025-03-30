@@ -68,6 +68,7 @@
 📐 tf_transformer.py（相机 → base_link 坐标转换）
        │ → /base_target_point (geometry_msgs/PointStamped)
        │ → 目前使用静态转换（假设相机固定在底座）
+       │ → 目前使用静态转换（假设相机固定在底座）
        ▼
 🦾 grasp_server.py（发送抓取 Action 到 MoveIt）
        │ → 控制机械臂完成抓取任务 ✅
@@ -140,9 +141,11 @@
 
 5. 启动视觉检测  
    ```bash
-   ros2 run piper_vision object_detector
+   ros2 launch orbbec_camera dabai_dcw2.launch.py
+   当前的检测还没有接收大模型给定的指令，所以先以瓶子检测作为目标
+   ros2 run piper_vision yolo_detect_3d --ros-args -p device:=cpu -p interest:=bottle   
    # 或模拟信号
-   ros2 topic pub /camera_target_point geometry_msgs/PointStamped \
+     ros2 topic pub /camera_target_point geometry_msgs/PointStamped \
      "{header: {frame_id: 'camera_link'}, point: {x: 0.1, y: 0.05, z: 0.03}}" --once
    ```
 
