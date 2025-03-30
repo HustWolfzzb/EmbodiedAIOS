@@ -114,7 +114,7 @@
 
 
 
-![机械臂与深度相机静态位置](./arm_camera_connector.jpg)
+!(机械臂与深度相机静态位置)[./arm_camera_connector.jpg]
 
 ## ✅ 启动流程建议
 
