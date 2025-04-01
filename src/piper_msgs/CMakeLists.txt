@@ -10,15 +10,20 @@ find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
 
 find_package(rosidl_default_generators REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PiperStatusMsg.msg"
   "msg/PosCmd.msg"
+  "msg/ObjectPos.msg"
+  "srv/SetInterest.srv"
   "srv/Enable.srv"
   "srv/PlayText.srv"
   "action/GripperControl.action"
 #  "srv/GripperControl.srv"
-  DEPENDENCIES # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
+  DEPENDENCIES geometry_msgs # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

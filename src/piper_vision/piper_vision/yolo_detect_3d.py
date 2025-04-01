@@ -13,7 +13,9 @@ import cv2
 import yaml
 from piper_vision.cv_tool import px2xy
 import os
-from geometry_msgs.msg import PointStamped
+# from geometry_msgs.msg import PointStamped
+from piper_msgs.msg import ObjectPos
+from piper_msgs.srv import SetInterest
 import message_filters
 import queue
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -21,6 +23,8 @@ import time
 import threading
 from std_srvs.srv import SetBool
 import numpy as np
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+
 # Get the ROS distribution version and set the shared directory for YoloV5 configuration files.
 ros_distribution = os.environ.get("ROS_DISTRO")
 package_share_directory = get_package_share_directory('piper_vision')
@@ -69,7 +73,7 @@ class YoloV5Ros2(Node):
         self.yolo_result_pub = self.create_publisher(
             Detection2DArray, "yolo_result", 10)
         
-        self.camera_target_point_pub = self.create_publisher(PointStamped, "/camera_target_point", 10)
+        self.camera_target_point_pub = self.create_publisher(ObjectPos, "/camera_target_point", 10)
         
         self.result_msg = Detection2DArray()
 
@@ -106,15 +110,20 @@ class YoloV5Ros2(Node):
         self.pub_result_img = self.get_parameter('pub_result_img').value
         self.interest = self.get_parameter('interest').value
 
-        # self.client = self.create_client(SetBool, '/camera/set_ldp_enable')
-        # self.client.wait_for_service()
+        self.client = self.create_client(SetBool, '/camera/set_ldp_enable')
+        self.interest_srv = self.create_service(SetInterest, '/set_interest', self.interest_callback)
+        # Exclusive callback group can ensure that only one callback is executed at a time
+        # timer_cb_group = MutuallyExclusiveCallbackGroup()
+        threading.Thread(target=self.yolo_main, daemon=True).start()
+        # self.timer = self.create_timer(0.1, self.yolo_main, callback_group=timer_cb_group)
 
-        # msg = SetBool.Request()
-        # msg.data = False
-        # self.send_request(self.client, msg) #关闭LDP，使深度相机一直开启
-        threading.Thread(target=self.main, daemon=True).start()
-        self.get_logger().info("YoloV5Ros2 node started.")
+        self.get_logger().info("YoloV5Ros2 node init.")
 
+    def interest_callback(self, request, response):
+        self.interest = request.interest
+        response.success = True
+        self.get_logger().info(f"object detect interest changed to {self.interest}")
+        return response
 
     def send_request(self, client, msg):
         future = client.call_async(msg)
@@ -124,9 +133,7 @@ class YoloV5Ros2(Node):
             
     def multi_callback(self, ros_rgb_image, ros_depth_image, depth_camera_info):
         if self.image_queue.full():
-            # 如果队列已满，丢弃最旧的图像
             self.image_queue.get()
-        # 将图像放入队列
         self.image_queue.put((ros_rgb_image, ros_depth_image, depth_camera_info))
 
     def camera_info_callback(self, msg: CameraInfo):
@@ -140,22 +147,20 @@ class YoloV5Ros2(Node):
         self.camera_info['roi'] = msg.roi
 
         self.destroy_subscription(self.camera_info_sub)
-        #     self.camera_info_sub.destroy()
-    def main(self):
+    def yolo_main(self):
         while rclpy.ok():
             try:
                 ros_rgb_image, ros_depth_image, depth_camera_info = self.image_queue.get(block=True, timeout=1)
             except queue.Empty:
-                if not rclpy.ok():
-                    break
-                continue
+                self.get_logger().error("image_queue is empty")
+                return
             try:
                 self.image_proc(ros_rgb_image, ros_depth_image, depth_camera_info)
             except Exception as e:
-                self.get_logger().info('error1: ' + str(e))
+                self.get_logger().error('yolo_main:' + str(e))
+            time.sleep(0.2)
                 
     def image_proc(self, ros_rgb_image: Image, ros_depth_image: Image, depth_camera_info: CameraInfo):
-        self.get_logger().info("image_proc: begin")
         # 5. Detect and publish results.
         rgb_image = np.ndarray(shape=(ros_rgb_image.height, ros_rgb_image.width, 3), dtype=np.uint8, buffer=ros_rgb_image.data)
         depth_image = np.ndarray(shape=(ros_depth_image.height, ros_depth_image.width), dtype=np.uint16, buffer=ros_depth_image.data)
@@ -168,12 +173,13 @@ class YoloV5Ros2(Node):
         image = self.bridge.imgmsg_to_cv2(ros_rgb_image)
         detect_result = self.yolov5.predict(image)
 
-        self.get_logger().info(str(detect_result))
+        self.get_logger().debug(str(detect_result))
 
-        point_stamp = PointStamped()
-
-        point_stamp.header.frame_id = "camera"
-        point_stamp.header.stamp = self.get_clock().now().to_msg()
+        object_pos = ObjectPos()
+        # point_stamp = PointStamped()
+        
+        object_pos.point_stamp.header.frame_id = "camera"
+        object_pos.point_stamp.header.stamp = self.get_clock().now().to_msg()
 
         # self.result_msg.detections.clear()
         # self.result_msg.header.frame_id = "camera"
@@ -187,25 +193,34 @@ class YoloV5Ros2(Node):
 
         for index in range(len(categories)):
             name = detect_result.names[int(categories[index])]
-            self.get_logger().info("image_proc: find " + name)
+            self.get_logger().debug("image_proc: find " + name)
 
-            if name != self.interest: 
+            if name != self.interest and self.interest != "all": 
                 continue
             
             # detection2d = Detection2D()
             # detection2d.id = name
             # TODO: 判断x和y是否超过了h,w
             x1, y1, x2, y2 = boxes[index]
+            # x1 = int(x1) if int(x1) > 0 else 0
+            # y1 = int(y1) if int(y1) > 0 else 0
+            # x2 = int(x2) if int(x2) < w else w
+            # y2 = int(y2) if int(y2) < h else h
             x1 = int(x1)
-            y1 = int(y1)
-            x2 = int(x2)
-            y2 = int(y2)
+            y1 = int(y1) 
+            x2 = int(x2) 
+            y2 = int(y2) 
             center_x = (x1+x2)/2.0
             center_y = (y1+y2)/2.0
-
+            d_center_x = center_x
+            d_center_y = center_y
+            if d_center_y < 0 : d_center_y = 0
             roi_distance = depth_image[y1:y2, x1:x2]
             try:
                 ave_dist = round(float(np.mean(roi_distance[np.logical_and(roi_distance>0, roi_distance<10000)])/1000.0), 3)
+                # dist_xy1 = round(float(depth_image[y1, x1]/1000.0), 3) if 0 < depth_image[y1, x1] <= 10000 else 1.0
+                # dist_xy2 = round(float(depth_image[y2, x2]/1000.0), 3) if 0 < depth_image[y2, x2] <= 10000 else 1.0
+
             except BaseException as e:
                 self.get_logger().error('error2: ' + str(e))
                 txt = "DISTANCE ERROR !!!"
@@ -214,46 +229,30 @@ class YoloV5Ros2(Node):
                 txt = "DISTANCE ERROR !!!"
                 return
             
-            dist = float(depth_image[int(center_y),int(center_x)])/1000.0
-            
-            # if ros_distribution=='galactic':
-            #     detection2d.bbox.center.x = center_x
-            #     detection2d.bbox.center.y = center_y
-            # else:
-            #     detection2d.bbox.center.position.x = center_x
-            #     detection2d.bbox.center.position.y = center_y
-
-            # detection2d.bbox.size_x = float(x2-x1)
-            # detection2d.bbox.size_y = float(y2-y1)
-
-            # obj_pose = ObjectHypothesisWithPose()
-            # obj_pose.hypothesis.class_id = name
-            # obj_pose.hypothesis.score = float(scores[index])
+            dist = float(depth_image[int(d_center_y),int(d_center_x)])/1000.0
 
             # px2xy
             world_x, world_y = px2xy(
                 [center_x, center_y], self.camera_info["k"], self.camera_info["d"], ave_dist)
-            self.get_logger().info(f"depth camera height:{h}, width:{w}; rgb camera height:{rgb_h}, width:{rgb_w}")
-            self.get_logger().info(f"object position: x:{x1}, {x2}, y:{y1}, {y2}, ave_dist:{ave_dist}, central_dist:{dist};;" + 
+            self.get_logger().debug(f"depth camera height:{h}, width:{w}; rgb camera height:{rgb_h}, width:{rgb_w}")
+            self.get_logger().debug(f"object position: x:{x1}, {x2}, y:{y1}, {y2}, ave_dist:{ave_dist}, central_dist:{dist};;" + 
                                    f"world_x:{world_x}, world_y:{world_y}")
 
-            # obj_pose.pose.pose.position.x = world_x
-            # obj_pose.pose.pose.position.y = world_y
-            # detection2d.results.append(obj_pose)
-            # self.result_msg.detections.append(detection2d)
-
-            # TODO: check 单位是否一致，应该是米
-            # point_stamp.point.x = world_x
-            # point_stamp.point.y = world_y
-            # point_stamp.point.z = dist
-
             # 因为相机的坐标系跟机械臂的坐标系设置还不一样，所以需要转换一下：
-            point_stamp.point.x = dist
-            point_stamp.point.y = -world_x
-            point_stamp.point.z = -world_y
+            object_pos.point_stamp.point.x = dist
+            object_pos.point_stamp.point.y = -world_x
+            object_pos.point_stamp.point.z = -world_y
+            # 计算物体宽和高
+            world_x1, world_y1 = px2xy(
+                [x1, y1], self.camera_info["k"], self.camera_info["d"], dist)
+            world_x2, world_y2 = px2xy(
+                [x2, y2], self.camera_info["k"], self.camera_info["d"], dist)
 
+            object_pos.object_width = abs(world_x2 - world_x1)
+            object_pos.object_height = abs(world_y2 - world_y1)
 
-            point_stamp.header.frame_id = "camera_link"  # ✅ 改这里
+            self.get_logger().debug(f"Object width: {object_pos.object_width:.2f}, height: {object_pos.object_height:.2f}")
+
             # Draw results.
             if self.show_result or self.pub_result_img:
                 cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -261,9 +260,9 @@ class YoloV5Ros2(Node):
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 cv2.waitKey(1)
             # print('==========', point_stamp)
-            point_stamp.header.frame_id = "camera_link"  # ✅ 改这里
+            object_pos.point_stamp.header.frame_id = "camera_link"  # ✅ 改这里
 
-            self.camera_target_point_pub.publish(point_stamp)
+            self.camera_target_point_pub.publish(object_pos)
             # 只要检测到一个物体，就退出循环
             break
 
