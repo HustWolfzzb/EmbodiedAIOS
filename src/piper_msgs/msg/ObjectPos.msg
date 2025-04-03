@@ -1,0 +1,3 @@
+geometry_msgs/PointStamped point_stamp
+float64 object_width
+float64 object_height
