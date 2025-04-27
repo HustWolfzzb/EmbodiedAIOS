@@ -19,3 +19,6 @@ oculus_reader/oculus_reader
 log/
 install/
 *.wav
+mobileclip_blt.pt
+yolo11x-seg.pt
+*.pt
