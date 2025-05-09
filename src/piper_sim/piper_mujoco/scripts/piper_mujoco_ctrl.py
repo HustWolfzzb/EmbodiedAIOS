@@ -2,6 +2,7 @@
 # coding=utf-8
 
 import sys
+
 print(sys.executable)
 
 import rclpy
@@ -15,16 +16,21 @@ from mujoco_py import GlfwContext
 from sensor_msgs.msg import JointState
 from ament_index_python.packages import get_package_share_directory
 
+
 class MujocoModel(Node):
     def __init__(self):
         super().__init__("mujoco_joint_controller")
-        self.create_subscription(JointState, "/joint_states", self.joint_state_callback, 10)
+        self.create_subscription(
+            JointState, "/joint_states", self.joint_state_callback, 10
+        )
 
         # 初始化 joint_targets 字典
         self.joint_targets = {}
 
-        pkg_share_dir = get_package_share_directory('piper_description')
-        model_path = os.path.join(pkg_share_dir, 'mujoco_model', 'piper_description.xml')
+        pkg_share_dir = get_package_share_directory("piper_description")
+        model_path = os.path.join(
+            pkg_share_dir, "mujoco_model", "piper_description.xml"
+        )
         model_path = os.path.abspath(model_path)
 
         self.get_logger().info(f"The model path is: {model_path}")
@@ -37,16 +43,16 @@ class MujocoModel(Node):
         self.tolerance = 0.05  # 角度误差容忍度
 
     def joint_state_callback(self, msg):
-        """ 从 ROS 2 /joint_states 话题获取关节角度 """
+        """从 ROS 2 /joint_states 话题获取关节角度"""
         for i, name in enumerate(msg.name):
             self.joint_targets[name] = msg.position[i]
-        
+
         # 确保 joint8 为 joint7 的负值
         if "joint7" in self.joint_targets:
             self.joint_targets["joint8"] = -self.joint_targets["joint7"]
 
     def pos_ctrl(self, joint_name, target_angle):
-        """ 控制 MuJoCo 关节角度 """
+        """控制 MuJoCo 关节角度"""
         if joint_name not in self.sim.model.joint_names:
             self.get_logger().warn(f"Joint {joint_name} not found in Mujoco model.")
             return
@@ -58,7 +64,7 @@ class MujocoModel(Node):
             self.get_logger().error(f"Error controlling joint {joint_name}: {e}")
 
     def control_loop(self):
-        """ 让 MuJoCo 机械臂跟随 ROS 关节状态 """
+        """让 MuJoCo 机械臂跟随 ROS 关节状态"""
         all_reached = True
         for joint, target_angle in self.joint_targets.items():
             if joint in self.sim.model.joint_names:
@@ -79,5 +85,6 @@ def main():
     mujoco_node.destroy_node()
     rclpy.shutdown()
 
-if __name__ == "__main__":  
+
+if __name__ == "__main__":
     main()

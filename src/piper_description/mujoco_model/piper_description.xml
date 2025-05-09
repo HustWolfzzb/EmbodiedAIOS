@@ -1,4 +1,5 @@
 <mujoco model="piper_description">
+    <option timestep="0.01" gravity="0 0 -9.81"/>
     <compiler angle="radian" />
     <size njmax="500" nconmax="100" />
     <asset>
@@ -39,7 +40,7 @@
                                 <inertial pos="-0.000179422 7.72241e-05 0.0305765" quat="0.498967 0.497649 -0.502223 0.501147" mass="0.152309" diaginertia="0.000119759 0.000110059 4.99704e-05" />
                                 <joint name="joint6" pos="0 0 0" axis="0 0 1" limited="true" range="-2.0944 2.0944" damping="0.1"/>
                                 <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="link6" />
-                                <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="gripper_base" />
+                                <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="gripper_base" />    <site name="ee_site" pos="0 0 0.05" size="0.01" rgba="1 0 0 1"/>
                                 <body name="link7" pos="0 0 0.1358" quat="0.707105 0.707108 0 0">
                                     <inertial pos="0.000651232 -0.049193 0.00972259" quat="0.519774 0.479905 -0.436488 0.555881" mass="0.0303535" diaginertia="1.60353e-05 1.14217e-05 5.97329e-06" />
                                     <joint name="joint7" pos="0 0 0" axis="0 0 1" type="slide" limited="true" range="0 0.035" damping="100"/>

@@ -28,3 +28,4 @@ Log/OrbbecSDK.log*.txt
 src/Log/*.log*.txt
 *tfevent*
 *.ipynb
+videos/
