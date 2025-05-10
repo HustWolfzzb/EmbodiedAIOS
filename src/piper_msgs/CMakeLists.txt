@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PiperStatusMsg.msg"
   "msg/PosCmd.msg"
   "msg/ObjectPos.msg"
+  "msg/AllObjectPos.msg"
   "srv/SetInterest.srv"
   "srv/Enable.srv"
   "srv/PlayText.srv"

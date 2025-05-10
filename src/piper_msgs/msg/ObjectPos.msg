@@ -1,3 +1,4 @@
-geometry_msgs/PointStamped point_stamp
-float64 object_width
-float64 object_height
+std_msgs/Header header
+geometry_msgs/Point point
+float32 width
+float32 height

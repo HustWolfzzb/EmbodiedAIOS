@@ -38,7 +38,7 @@ ros2 run piper_vision yolo_detect_3d --ros-args -p device:=cuda:0 -p interest:="
 
 - **`interest:="person"`**:
 
-  指定要定位位置的目标对象，默认为 `"bottle"`。这里设置为 `"person"`，表示检测场景中的“人”。你可以根据需要更改为其他目标，如 `"bottle"`、`"cup"` 等。被检测到的对象会从话题`/piper_vision/target_point`发布。也可以指定为"all"，表示所有识别到的对象都会发布位置。
+  指定要定位位置的目标对象，默认为 `"bottle"`。这里设置为 `"person"`，表示检测场景中的“人”。你可以根据需要更改为其他目标，如 `"bottle"`、`"cup"` 等。被检测到的对象会从话题`/piper_vision/target_point`发布。
 
 - **`depth_threshold:=15.0`**:
 
@@ -52,9 +52,13 @@ ros2 run piper_vision yolo_detect_3d --ros-args -p device:=cuda:0 -p interest:="
 
   是否启用背景移除功能，默认为 `True`。这里设置为 `False`，表示不进行背景移除。如果设置为 `True`，系统会根据 `depth_threshold` 移除背景。
 
+- **`conf_threshold:=0.7`**:
+  设置置信度阈值，默认为 `0.7`。检测到的目标物体的置信度低于该值时，会被过滤掉，不会发布到话题中。可以根据需要调整该值以平衡检测精度和召回率。
+
 yolo_ros2节点会在以下的topic中发布消息：
 
-- `/piper_vision/target_point` 用于发布检测到的目标物体的位置和尺寸信息。
+- `/piper_vision/all_object_points` 用于发布看到的所有目标物体的位置和尺寸信息。
+- `/piper_vision/target_point` 仅发布名为参数`interest`的目标物体的位置和尺寸信息。
 - `/piper_vision/pred_image` 用于发布经过 YOLO 检测和标注后的图像，便于可视化检测结果。可以用rviz2查看。
 
 ## 3. 有关yoloe的介绍

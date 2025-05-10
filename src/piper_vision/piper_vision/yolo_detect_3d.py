@@ -5,10 +5,9 @@ from rcl_interfaces.msg import ParameterDescriptor
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import cv2
-import yaml
 from piper_vision.cv_tool import px2xy
 import os
-from piper_msgs.msg import ObjectPos
+from piper_msgs.msg import ObjectPos, AllObjectPos
 from piper_msgs.srv import SetInterest
 import message_filters
 import queue
@@ -18,6 +17,7 @@ from std_srvs.srv import SetBool
 import numpy as np
 import traceback 
 from ultralytics import YOLOE
+from geometry_msgs.msg import Point
 
 # Get the ROS distribution version and set the shared directory for Yolo configuration files.
 ros_distribution = os.environ.get("ROS_DISTRO")
@@ -69,17 +69,18 @@ class YoloRos2(Node):
 
         # 2. Create publishers.
         self.camera_target_point_pub = self.create_publisher(ObjectPos, "/piper_vision/target_point", 10)
+        # self.all_objects_pub = 
         self._pred_pub = self.create_publisher(Image, "/piper_vision/pred_image", 10)
-        
+        self.camera_all_objects_pub = self.create_publisher(AllObjectPos, "/piper_vision/all_object_points", 10)
         # 3. Create an image subscriber (subscribe to depth information for 3D cameras, load camera info for 2D cameras).
         self.image_queue = queue.Queue(maxsize=2)
 
         rgb_sub = message_filters.Subscriber(self, Image, '/camera/color/image_raw')
         depth_sub = message_filters.Subscriber(self, Image, '/camera/depth/image_raw')
 
-        # 同步时间戳
+        # Synchronize timestamps
         sync = message_filters.ApproximateTimeSynchronizer([rgb_sub, depth_sub], 3, 0.02)
-        sync.registerCallback(self.multi_callback) #执行反馈函数
+        sync.registerCallback(self.multi_callback) # Execute callback function
 
         camera_info_topic = self.get_parameter('camera_info_topic').value
         self.camera_info_sub = self.create_subscription(
@@ -129,17 +130,19 @@ class YoloRos2(Node):
         self.camera_info['roi'] = msg.roi
 
         self.destroy_subscription(self.camera_info_sub)
+
     def yolo_main(self):
         while rclpy.ok():
             try:
                 ros_rgb_image, ros_depth_image= self.image_queue.get(block=True, timeout=1)
             except queue.Empty:
                 self.get_logger().error("image_queue is empty")
-                return
+                time.sleep(0.1)
+                continue
             try:
                 self.image_proc(ros_rgb_image, ros_depth_image)
             except Exception as e:
-                error_msg = traceback.format_exc()  # 这会包含文件名、行号和调用栈
+                error_msg = traceback.format_exc()  # This will include file name, line number, and call stack
                 self.get_logger().error('yolo_main:' + error_msg)
             time.sleep(0.2)
     
@@ -173,9 +176,16 @@ class YoloRos2(Node):
         if enable_bg_removal == True:
             bg_removed = np.where((depth_image_3d > self.depth_threshold) | (depth_image_3d != depth_image_3d) | (depth_image_3d == 0), grey_color, np_color_image)
         else :
-            bg_removed = np_color_image
+            bg_removed = np.where((depth_image_3d != depth_image_3d) | (depth_image_3d == 0), grey_color, np_color_image)
         return bg_removed, np_color_image, np_depth_image
-            
+    
+    def remove_mask_outliers(self, data, lower_percentile=10, upper_percentile=90):
+        arr = np.array(data)
+        lower = np.percentile(arr, lower_percentile)
+        upper = np.percentile(arr, upper_percentile)
+        filtered = arr[(arr >= lower) & (arr <= upper)]
+        return filtered.tolist()
+
     def cluster_select(self, num_list, threshold=1.5):
         """
         Remove outliers using IQR (Interquartile Range) method.
@@ -190,19 +200,19 @@ class YoloRos2(Node):
         if not num_list:
             return []
 
-        q1 = np.percentile(num_list, 25)  # 第一四分位数 (25%)
-        q3 = np.percentile(num_list, 75)  # 第三四分位数 (75%)
-        iqr = q3 - q1                     # 四分位距 (IQR)
+        q1 = np.percentile(num_list, 25)  # First quartile (25%)
+        q3 = np.percentile(num_list, 75)  # Third quartile (75%)
+        iqr = q3 - q1                     # Interquartile range (IQR)
         lower_bound = q1 - threshold * iqr
         upper_bound = q3 + threshold * iqr
         return [x for x in num_list if lower_bound <= x <= upper_bound]
     
     def get_mask_center_opencv(self, mask_points):
         """
-        输入: mask_points (np.array) - 多边形点集, 形状 (n, 1, 2)
-        输出: (cx, cy) - 中心点坐标
+        Input: mask_points (np.array) - Polygon point set, shape (n, 1, 2)
+        Output: (cx, cy) - Center point coordinates
         """
-        # 计算矩（Moments）
+        # Calculate moments
         M = cv2.moments(mask_points)
         cx = int(M["m10"] / M["m00"])
         cy = int(M["m01"] / M["m00"])
@@ -210,12 +220,13 @@ class YoloRos2(Node):
 
     def get_mask_center(self, mask_points):
         """
-        输入: mask_points (np.array) - 多边形点集, 形状 (n, 2)
-        输出: (cx, cy) - 中心点坐标
+        Input: mask_points (np.array) - Polygon point set, shape (n, 2)
+        Output: (cx, cy) - Center point coordinates
         """
-        # 计算所有点的均值（几何中心）
+        # Calculate the mean of all points (geometric center)
         cx, cy = np.mean(mask_points, axis=0)
         return cx, cy
+    
     def image_proc(self, ros_rgb_image: Image, ros_depth_image: Image):
         # 5. Detect and publish results.
         bg_removed, np_color_image, np_depth_image = self.bg_removal(ros_rgb_image, ros_depth_image, self.enable_bg_removal)
@@ -239,17 +250,25 @@ class YoloRos2(Node):
         # Get number of objects in the scene
         object_boxes = detection.boxes.xyxy.cpu().numpy()
         n_objects = object_boxes.shape[0]
-        masks = detection.masks
+        masks = detection.masks.cpu()
         detection_class = detection.boxes.cls.cpu().numpy()
         detection_conf = detection.boxes.conf.cpu().numpy()
+        
+        all_object_pos = AllObjectPos()
+        all_object_pos.header.frame_id = "camera_link"
+        all_object_pos.header.stamp = self.get_clock().now().to_msg()
+        all_object_pos.names = []
+        all_object_pos.points = []
+        all_object_pos.widths = []
+        all_object_pos.heights = []
 
         for i in range(n_objects):
             name = detection.names[detection_class[i]]
             conf = detection_conf[i]
 
             self.get_logger().info(f"image_proc: find {name}, conf is {conf}")
-            if name != self.interest and self.interest != "all": 
-                continue
+            # if name != self.interest and self.interest != "all": 
+            #     continue
             if conf < self.conf_threshold:
                 continue
             
@@ -257,22 +276,33 @@ class YoloRos2(Node):
             # get the centroid of the mask object
             center_x, center_y = self.get_mask_center_opencv(mask_points)
 
-            single_selection_mask = np.array(masks.xyn[i])
+            single_selection_mask = np.array(masks.xy[i])
+            # Output the mask to an image
+            # cv2.imwrite("mask.png", np.array(masks.data[i]) * 255) 
             single_object_box = object_boxes[i]
             x1, y1, x2, y2 = single_object_box
 
-            depth = []
+            depths = []
+            max_depth = 0
+            min_depth = 10000
             for point in single_selection_mask:
-                    p_x = int(point[0]*self.camera_info['width'])
-                    p_y = int(point[1]*self.camera_info['height'])
-                    if 0 < np_depth_image.item(p_y, p_x):
-                        depth.append(np_depth_image.item(p_y, p_x))
-            
+                    p_x = int(point[0])
+                    p_y = int(point[1])
+                    depth = np_depth_image.item(p_y, p_x)
+                    if not (depth == 0 or depth != depth):
+                        max_depth = max(max_depth, depth)
+                        min_depth = min(min_depth, depth)
+                        depths.append(depth)
+            # print(f"max depth is {max_depth}, min depth is {min_depth}")
             # remove outliers
-            selected_depth = self.cluster_select(depth)  
-            selected_depth = self.cluster_select(selected_depth)
+            selected_depth = self.remove_mask_outliers(depths, lower_percentile=10, upper_percentile=70)  
+            # selected_depth = self.cluster_select(selected_depth)
+            # Calculate the maximum and minimum values of selected_depth
+            # max_depth = max(selected_depth)
+            # min_depth = min(selected_depth)
+            # print(f"max depth is {max_depth}, min depth is {min_depth}")
 
-            # 计算selected_depth的平均值
+            # Calculate the average value of selected_depth
             if len(selected_depth) > 0:
                 avg_depth = sum(selected_depth) / len(selected_depth)
             else:
@@ -286,22 +316,36 @@ class YoloRos2(Node):
 
             world_x, world_y = px2xy(
                 [center_x, center_y], self.camera_info["k"], self.camera_info["d"], center_depth)
-            
-            object_pos = ObjectPos()
-            object_pos.point_stamp.header.frame_id = "camera_link"
-            object_pos.point_stamp.header.stamp = self.get_clock().now().to_msg()
-            # 因为相机的坐标系跟机械臂的坐标系设置还不一样，所以需要转换一下：
-            object_pos.point_stamp.point.x = avg_depth
-            object_pos.point_stamp.point.y = -world_x
-            object_pos.point_stamp.point.z = -world_y
-            # 计算物体宽和高
+            # Calculate the width and height of the object
             world_x1, world_y1 = px2xy(
                 [x1, y1], self.camera_info["k"], self.camera_info["d"], avg_depth)
             world_x2, world_y2 = px2xy(
                 [x2, y2], self.camera_info["k"], self.camera_info["d"], avg_depth)
-            object_pos.object_width = abs(world_x2 - world_x1)
-            object_pos.object_height = abs(world_y2 - world_y1)
-            self.camera_target_point_pub.publish(object_pos)
+
+
+            all_object_pos.names.append(name)
+            point = Point()
+            point.x = avg_depth
+            point.y = -world_x
+            point.z = -world_y
+            all_object_pos.points.append(point)
+            all_object_pos.widths.append(abs(world_x2 - world_x1))
+            all_object_pos.heights.append(abs(world_y2 - world_y1))
+
+            if name == self.interest: 
+                object_pos = ObjectPos()
+                object_pos.header.frame_id = "camera_link"
+                object_pos.header.stamp = self.get_clock().now().to_msg()
+                # Since the camera coordinate system is different from the robotic arm coordinate system, a transformation is required:
+                object_pos.point.x = avg_depth
+                object_pos.point.y = -world_x
+                object_pos.point.z = -world_y
+
+                object_pos.width = abs(world_x2 - world_x1)
+                object_pos.height = abs(world_y2 - world_y1)
+                self.camera_target_point_pub.publish(object_pos)
+        
+        self.camera_all_objects_pub.publish(all_object_pos)
 
 def main():
     rclpy.init()
