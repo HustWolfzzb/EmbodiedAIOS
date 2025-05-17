@@ -1,16 +1,20 @@
 from openai import OpenAI
 import time
 
-# 引用func_tools_control.py文件
-from func_tools_control import ArmControl, CarControl
-from func_tools_control import arm_enable, arm_get_status, arm_move, arm_stop, arm_grab
-from func_tools_control import car_enable, car_get_status, car_move, car_stop
+from func_tools_arm import ArmControl
+from func_tools_arm import arm_get_status, arm_move, arm_stop, arm_grab
 
-# 引用func_tools_sensor.py文件
-from func_tools_sensor import VisionSensor, AudioSensor, MapSensor
-from func_tools_sensor import camera_enable, image_capture, object_detection, object_find
-from func_tools_sensor import audio_capture, speech_to_text, text_to_speech
-from func_tools_sensor import semantic_map_create, semantic_map_update, semantic_map_query
+from func_tools_car import CarControl
+from func_tools_car import car_get_status, car_move, car_stop
+
+from func_tools_vision import VisionSensor
+from func_tools_vision import image_capture, object_detection, object_find
+
+from func_tools_audio import AudioSensor
+from func_tools_audio import audio_capture, speech_to_text, text_to_speech
+
+from func_tools_map import MapSensor
+from func_tools_map import semantic_map_update, semantic_map_query
 
 # 提示词
 system_prompt_cn = '''
@@ -179,20 +183,20 @@ def init_func_call():
     
     # 初始化类
     arm_control = ArmControl(
-        arm_enable=arm_enable,
+
         arm_status=arm_get_status,
         arm_move=arm_move,
         arm_stop=arm_stop,
         arm_grab=arm_grab
     )
     car_control = CarControl(
-        car_enable=car_enable,
+
         car_status=car_get_status,
         car_move=car_move,
         car_stop=car_stop
     )
     vision_sensor = VisionSensor(
-        vision_camera_enable=camera_enable,
+
         vision_image_get=image_capture,
         vision_object_find=object_find,
         vision_object_detection=object_detection
@@ -203,7 +207,7 @@ def init_func_call():
         audio_text_to_speech=text_to_speech
     )
     map_sensor = MapSensor(
-        map_create=semantic_map_create,
+
         map_update=semantic_map_update,
         map_query_class=semantic_map_query,
         map_query_object=semantic_map_query,
