@@ -28,6 +28,7 @@
                     <inertial pos="-0.0202738 -0.133915 -0.000458683" quat="0.528127 0.491307 -0.505056 0.473938" mass="0.219942" diaginertia="0.000201238 0.000190068 7.08709e-05" />
                     <joint name="joint3" pos="0 0 0" axis="0 0 1" limited="true" range="-2.967 0" damping="20"/>
                     <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link3" />
+                    <site name="anthropomorphic_arm" pos="-0.021984 -0.25075 0" size="0.01" rgba="1 0 0 1"/>
                     <body name="link4" pos="-0.021984 -0.25075 0" quat="0.707105 0.707108 0 0">
                         <inertial pos="-9.66636e-05 0.000876064 -0.00496881" quat="0.512749 0.48584 0.481646 0.518714" mass="0.131814" diaginertia="5.1333e-05 4.14831e-05 3.96892e-05" />
                         <joint name="joint4" pos="0 0 0" axis="0 0 1" limited="true" range="-1.745 1.745" damping="5"/>
@@ -41,7 +42,7 @@
                                 <joint name="joint6" pos="0 0 0" axis="0 0 1" limited="true" range="-2.0944 2.0944" damping="0.1"/>
                                 <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="link6" />
                                 <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="gripper_base" />
-                                <site name="ee_site" pos="0 0 0.15" size="0.01" rgba="1 0 0 1"/>
+                                <site name="ee_site" pos="0 0 0" size="0.01" rgba="1 0 0 1"/>
                                 <body name="link7" pos="0 0 0.1358" quat="0.707105 0.707108 0 0">
                                     <inertial pos="0.000651232 -0.049193 0.00972259" quat="0.519774 0.479905 -0.436488 0.555881" mass="0.0303535" diaginertia="1.60353e-05 1.14217e-05 5.97329e-06" />
                                     <joint name="joint7" pos="0 0 0" axis="0 0 1" type="slide" limited="true" range="0 0.035" damping="100"/>
