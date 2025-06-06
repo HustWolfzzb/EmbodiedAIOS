@@ -81,3 +81,21 @@ YOLOE also includes prompt-free variants that come with a built-in vocabulary. T
 2. Text prompt
 
 Text prompts allow you to specify the classes that you wish to detect through textual descriptions. The following code shows how you can use YOLOE to detect people and buses in an image.
+
+## 4. 语义地图构建指引
+运行流程：
+
+在启动yolo_detect_3d节点侯，先运行vlm节点：
+
+```
+ros2 run piper_vision vlm_mapper_node
+```
+
+在命令行执行，这样会建图，地图会保存在./map/map.json下：
+
+```
+ros2 service call /piper_vision/map_capture std_srvs/srv/Empty "{}"
+```
+在piper_vision下的piper_vision_api.py有 get_coordinate_by_name函数，供侯老师调用。
+
+

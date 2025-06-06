@@ -34,4 +34,7 @@ test.txt
 videos*/
 *.wav
 *.mp3
-
+records/
+images/
+embody-testfile/
+map/

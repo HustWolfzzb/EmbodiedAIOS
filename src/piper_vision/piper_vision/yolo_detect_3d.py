@@ -22,6 +22,9 @@ from tf2_ros import TransformListener, Buffer
 from rclpy.duration import Duration
 from tf2_geometry_msgs import do_transform_point
 from geometry_msgs.msg import PointStamped
+from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
+from geometry_msgs.msg import TransformStamped
+import tf_transformations
 
 # Get the ROS distribution version and set the shared directory for Yolo configuration files.
 ros_distribution = os.environ.get("ROS_DISTRO")
@@ -57,7 +60,9 @@ class YoloRos2(Node):
         self.declare_parameter("target_frame_id", "map", ParameterDescriptor(
             name="target_frame_id", description="The target frame id for tf, default: map"
         ))
-
+        self.declare_parameter("tf_translation", [0.3, 0.0, 0.1, -1.5708, 0.0, -1.5708], ParameterDescriptor(
+            name="tf_translation", description="The tf translation of the camera to base_link, format: [x, y, z, x_roll y_pitch z_yaw], default: [0.3, 0, 0.1, -1.5708, 0, -1.5708]"
+        ))
         self.depth_threshold = self.get_parameter("depth_threshold").value * 1000 # convert to mm
         self.conf_threshold = self.get_parameter('conf_threshold').value
         self.interest = self.get_parameter('interest').value
@@ -68,6 +73,8 @@ class YoloRos2(Node):
         self.target_frame_id = self.get_parameter('target_frame_id').value
         self.camera_frame_id = "camera_link"
         self.transform = None
+        self.tf_translation = self.get_parameter('tf_translation').get_parameter_value().double_array_value
+
 
         if self.model == "yoloe-11l-seg":
             self.text_prompt = True
@@ -107,6 +114,24 @@ class YoloRos2(Node):
         # self.send_request(self.ldp_client, False)
 
         # tf
+        self._broadcaster = StaticTransformBroadcaster(self)
+        static_transform_stamped = TransformStamped()
+        static_transform_stamped.header.stamp = self.get_clock().now().to_msg()
+        static_transform_stamped.header.frame_id = "base_link"
+        static_transform_stamped.child_frame_id = self.camera_frame_id
+
+        static_transform_stamped.transform.translation.x = self.tf_translation[0]
+        static_transform_stamped.transform.translation.y = self.tf_translation[1]
+        static_transform_stamped.transform.translation.z = self.tf_translation[2]
+
+        quat = tf_transformations.quaternion_from_euler(self.tf_translation[3], self.tf_translation[4], self.tf_translation[5])
+        static_transform_stamped.transform.rotation.x = quat[0]
+        static_transform_stamped.transform.rotation.y = quat[1]
+        static_transform_stamped.transform.rotation.z = quat[2]
+        static_transform_stamped.transform.rotation.w = quat[3]
+
+        self._broadcaster.sendTransform(static_transform_stamped)
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -115,7 +140,8 @@ class YoloRos2(Node):
         threading.Thread(target=self.yolo_main, daemon=True).start()
 
         # map.txt
-        self.f = open("map.txt", "w")  # 可换为 "a" 追加模式
+        self.f = None
+        # self.f = open("map.txt", "w")  # 可换为 "a" 追加模式
         self.written_names = set()
 
         self.get_logger().info("YoloRos2 node init.")
@@ -179,7 +205,7 @@ class YoloRos2(Node):
             except Exception as e:
                 error_msg = traceback.format_exc()  # This will include file name, line number, and call stack
                 self.get_logger().error('yolo_main:' + error_msg)
-            time.sleep(0.2)
+            time.sleep(0.5)
     
     def bg_removal(self, color_img_msg: Image, depth_img_msg: Image, enable_bg_removal: bool):
         """
@@ -376,8 +402,8 @@ class YoloRos2(Node):
             all_object_pos.heights.append(abs(world_y2 - world_y1))
 
             # 输出检测到的物体到文件
-            for name, point in zip(all_object_pos.names, all_object_pos.points):
-                self.write_unique_point(name, point)
+            # for name, point in zip(all_object_pos.names, all_object_pos.points):
+            #     self.write_unique_point(name, point)
 
             if name == self.interest: 
                 object_pos = ObjectPos()
