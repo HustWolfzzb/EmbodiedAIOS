@@ -1,4 +1,0 @@
-sensors:
-  - name: sensor0_front
-    trig: 27
-    echo: 17

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>piper_raspi_hc_sr04</name>
+  <name>raspi_hc_sr04</name>
   <version>0.0.1</version>
   <description>HC-SR04 ultrasonic sensor driver for Raspberry Pi</description>
   <maintainer email="wheatfox17@icloud.com">wheatfox</maintainer>

@@ -13,7 +13,7 @@ import os
 class HCSR04Node(Node):
     def __init__(self):
         super().__init__("hc_sr04_node")
-        self.get_logger().info("Initializing HCSR04Node...")
+        self.get_logger().info("initializing hc_sr04_node...")
 
         # Load sensor configurations from YAML file in the same directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -42,13 +42,13 @@ class HCSR04Node(Node):
             )
 
         # Create heartbeat publisher
-        self.heartbeat_publisher = self.create_publisher(Float32, "ultrasonic/heartbeat", 10)
-        self.get_logger().info("created heartbeat publisher on topic ultrasonic/heartbeat")
+        # self.heartbeat_publisher = self.create_publisher(Float32, "ultrasonic/heartbeat", 10)
+        #   self.get_logger().info("created heartbeat publisher on topic ultrasonic/heartbeat")
 
         self.timer = self.create_timer(0.1, self.timer_callback)  # 10Hz
-        self.heartbeat_timer = self.create_timer(5, self.heartbeat_callback)
-        self.get_logger().info("Created timers for sensor readings and heartbeat")
-        
+
+        # self.heartbeat_timer = self.create_timer(5, self.heartbeat_callback)
+
         self.driver = MultiHCSR04Driver(self.sensor_configs)
         self.get_logger().info(
             f"HC-SR04 node started with {len(self.sensor_configs)} sensors"
@@ -58,7 +58,7 @@ class HCSR04Node(Node):
         self.get_logger().debug("Heartbeat callback triggered")
         current_time = self.get_clock().now().to_msg().sec
         self.get_logger().info(f"heartbeat at {current_time}")
-        
+
         # Publish heartbeat message
         msg = Float32()
         msg.data = float(current_time)
@@ -66,9 +66,6 @@ class HCSR04Node(Node):
         self.get_logger().debug(f"Published heartbeat message: {msg.data}")
 
     def timer_callback(self):
-        self.get_logger().debug("Timer callback triggered")
-        # TODO: passed
-        return
         distances = self.driver.get_all_distances()
 
         for sensor_name, distance in distances.items():
@@ -80,11 +77,11 @@ class HCSR04Node(Node):
                 msg.field_of_view = 0.1
                 msg.min_range = 0.02
                 msg.max_range = 4.0
-                msg.range = float(distance)
+                msg.range = float(distance) / 100.0  # convert cm to m
 
                 self.sensor_publishers[sensor_name].publish(msg)
-                self.get_logger().debug(
-                    f"published distance for {sensor_name}: {distance} cm"
+                self.get_logger().info(
+                    f"published distance for {sensor_name}: {distance:.6f} cm, range: {msg.range:.6f} m"
                 )
             else:
                 self.get_logger().warn(
@@ -101,12 +98,12 @@ def main(args=None):
     node = HCSR04Node()
 
     try:
-        node.get_logger().info("Starting to spin node...")
+        node.get_logger().info("starting to spin node...")
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info("Keyboard interrupt received")
+        node.get_logger().info("keyboard interrupt received")
     except Exception as e:
-        node.get_logger().error(f"Exception occurred: {str(e)}")
+        node.get_logger().error(f"exception occurred: {str(e)}")
     finally:
         node.cleanup()
         node.destroy_node()
