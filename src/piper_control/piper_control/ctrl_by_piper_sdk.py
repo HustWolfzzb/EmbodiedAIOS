@@ -1,7 +1,7 @@
 import numpy as np
 import time
 from piper_sdk import C_PiperInterface_V2
-from ctrl_base import CtrlBase
+from .ctrl_base import CtrlBase
 from scipy.spatial.transform import Rotation as R
 
 
