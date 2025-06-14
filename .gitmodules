@@ -13,3 +13,9 @@
 [submodule "src/piper_ranger/src/ugv_sdk"]
 	path = src/piper_ranger/src/ugv_sdk
 	url = https://github.com/agilexrobotics/ugv_sdk.git
+[submodule "src/piper_pose_detection/graspnet/graspnetAPI"]
+	path = src/piper_pose_detection/graspnet/graspnetAPI
+	url = https://github.com/graspnet/graspnetAPI.git
+[submodule "src/piper_pose_detection/graspnet/graspnet-baseline"]
+	path = src/piper_pose_detection/graspnet/graspnet-baseline
+	url = https://github.com/graspnet/graspnet-baseline.git

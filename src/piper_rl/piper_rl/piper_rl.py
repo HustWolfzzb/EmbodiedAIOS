@@ -35,6 +35,8 @@ class RobotEnv(gym.Env):
             self.ctrl = CtrlByMujoco(
                 render=render,
             )
+            if render:
+                self.render_mode = "rgb_array"
         elif ctrl_mode == "piper_sdk":
             self.ctrl = CtrlByPiperSDK()
         else:
@@ -145,7 +147,7 @@ class RobotEnv(gym.Env):
             reward += 100.0
         # if dir_dist < 0.1:
         #     reward += 100.0
-        if dist < 0.02 and dir_dist < 0.1:
+        if dist < 0.02 and dir_dist < 1:
             # self.ctrl_gripper(close=True)
             # if float_equal(
             #     self.data.qpos[self.joint7_id], GRIPPER_CLOSE_POS_7
