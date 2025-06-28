@@ -2,12 +2,14 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 import subprocess
-import whisper
 import time
 import os
 from piper_msgs.srv import PlayText
-import torch
 
+
+import whisper
+import torch
+from xunfei import asr_transcribe
 
 KEYWORDS = ["你好", "开始", "激活"]
 TEMP_AUDIO_FILE = "./temp_listen.wav"
@@ -25,8 +27,8 @@ class WhisperNode(Node):
             self.get_logger().info("✅ Whisper 模型已移动到 GPU 运行")
         else:
             self.get_logger().warn("⚠️ CUDA 不可用，Whisper 将在 CPU 上运行")
-
         self.get_logger().info("✅ Whisper 模型加载完成，准备监听语音指令")
+
         self.publisher = self.create_publisher(String, 'voice_command', 10)
         # self.tts_pub = self.create_publisher(String, '·', 10)
         self.client = self.create_client(PlayText, 'play_tts')
@@ -53,7 +55,8 @@ class WhisperNode(Node):
 
                             self.publlish_is_sync("你好，请您在我说完后发布指令，您有十秒时间", sync=True)
                             self.record_audio(TEMP_AUDIO_FILE, duration=10)
-                            text_command = self.transcribe_audio(TEMP_AUDIO_FILE).strip()
+                            # 修改使用讯飞的asr api来做语音命令转换，这样可以加速很多，否则原来的whisper模型实在是太慢了。
+                            text_command = asr_transcribe(TEMP_AUDIO_FILE).strip()
                             if text_command:
                                 msg = String(data=text + '。' + text_command)
                                 self.publisher.publish(msg)
