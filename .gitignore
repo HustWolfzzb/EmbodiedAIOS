@@ -12,6 +12,8 @@ src/piper/backup
 *.7z
 *.zip
 *.tar
+!src/piper_pose_detection/graspnet/logs/log_kn/checkpoint.tar
+!src/piper_pose_detection/graspnet/logs/log_rs/checkpoint.tar
 analytical_solution
 oculus_reader
 oculus_reader/oculus_reader
