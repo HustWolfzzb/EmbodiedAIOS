@@ -11,26 +11,24 @@ from typing import Dict, Optional, List
 
 
 class HCSR04Driver:
-    def __init__(self, trig_pin: int, echo_pin: int):
+    def __init__(self, trig: int, echo: int):
         """
         Initialize the HC-SR04 ultrasonic sensor driver
 
         Args:
-            trig_pin (int): GPIO pin number for trigger
-            echo_pin (int): GPIO pin number for echo
+            trig (int): GPIO number for trigger
+            echo (int): GPIO number for echo
         """
-        self.trig_pin = trig_pin
-        self.echo_pin = echo_pin
+        self.trig_pin = trig
+        self.echo_pin = echo
 
+        gpio.setwarnings(False)
         gpio.setmode(gpio.BCM)
         gpio.setup(self.trig_pin, gpio.OUT)
         gpio.setup(self.echo_pin, gpio.IN)
 
-        gpio.output(self.trig_pin, False)
-        time.sleep(0.5)
-
     def get_distance(self) -> Optional[float]:
-        try:
+        try:            
             gpio.output(self.trig_pin, False)
             time.sleep(0.1)
             gpio.output(self.trig_pin, True)
@@ -91,6 +89,13 @@ class MultiHCSR04Driver:
     def cleanup(self):
         gpio.cleanup()
 
+    def __str__(self):
+        # print each sensor name and trig and echo pin
+        return "\n".join(
+            [f"{name}: trig={sensor.trig_pin}, echo={sensor.echo_pin}"
+             for name, sensor in self.sensors.items()]
+        )
+
 
 def main():
     def signal_handler(signal, frame):
@@ -105,7 +110,7 @@ def main():
 
     print("starting ultrasonic sensor driver")
     print(
-        f"initialized {len(driver.get_sensor_names())} sensors: {', '.join(driver.get_sensor_names())}"
+        f"initialized {len(driver.get_sensor_names())} sensors: {driver}"
     )
 
     try:

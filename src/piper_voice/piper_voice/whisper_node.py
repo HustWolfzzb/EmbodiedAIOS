@@ -5,6 +5,12 @@ import subprocess
 import time
 import os
 from piper_msgs.srv import PlayText
+<<<<<<< HEAD
+=======
+import torch
+import sounddevice as sd
+import scipy.io.wavfile as wav
+>>>>>>> 063fddf0ac524fd5b8f65d0295ccc4a00647b3f5
 
 
 import whisper
@@ -36,8 +42,14 @@ class WhisperNode(Node):
             self.get_logger().info('等待 TTS 服务...')
         # 启动循环监听
         self.request = PlayText.Request()
-        self.loop()
-
+        # self.loop()
+        
+    def listen(self):
+        self.get_logger().info("🎙️ 正在录音 3 秒...")
+        self.record_audio(TEMP_AUDIO_FILE, duration=3)
+        text = self.transcribe_audio(TEMP_AUDIO_FILE).strip()
+        return text
+        
     def loop(self):
         while rclpy.ok():
             self.get_logger().info("🎙️ 正在录音 3 秒...")
@@ -89,6 +101,10 @@ class WhisperNode(Node):
 
 
     def record_audio(self, filename, duration=3):
+        sample_rate=44100
+        recording = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype='float64')
+        sd.wait()
+        wav.write(filename, sample_rate, recording)
         cmd = ["arecord", "-D", "plughw:2,0", "-d", str(duration), "-f", "cd", filename]
         subprocess.run(cmd)
 
@@ -97,9 +113,10 @@ class WhisperNode(Node):
         return result["text"]
 
 def main(args=None):
-    rclpy.init(args=args)
-    try:
-        rclpy.spin(WhisperNode())
-    except KeyboardInterrupt:
-        pass
-    rclpy.shutdown()
+    
+    # rclpy.init(args=args)
+    # try:
+    #     rclpy.spin(WhisperNode())
+    # except KeyboardInterrupt:
+    #     pass
+    # rclpy.shutdown()

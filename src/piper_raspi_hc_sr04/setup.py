@@ -3,7 +3,7 @@
 from setuptools import find_packages, setup
 import os
 
-package_name = "piper_raspi_hc_sr04"
+package_name = "raspi_hc_sr04"
 
 setup(
     name=package_name,
@@ -24,7 +24,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "hc_sr04_node = piper_raspi_hc_sr04.node:main",
+            "hc_sr04_node = raspi_hc_sr04.node:main",
         ],
     },
 )
